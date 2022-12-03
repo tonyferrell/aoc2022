@@ -9,7 +9,7 @@ use std::{
 
 use itertools::Itertools;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 enum RockPaperScissors {
     Rock,
     Paper,
@@ -54,7 +54,7 @@ fn main() {
         }
     };
 
-    let score = score_tournament_1(&filepath);
+    let score = score_tournament_2(&filepath);
     println!("Final Score: {}", score);
 }
 
@@ -87,18 +87,57 @@ fn score_tournament_1(filename: &str) -> i32 {
         .sum()
 }
 
+fn score_tournament_2(filename: &str) -> i32 {
+    let game_lines = get_entries(filename);
+    game_lines
+        .iter()
+        .map(|game| score_game_2((&game.0, &game.1)))
+        .sum()
+}
+
 fn score_game_1<T: AsRef<str>>(scores: (T, T)) -> i32 {
     let (theirs, mine): (RockPaperScissors, RockPaperScissors) = (
         scores.0.as_ref().parse().unwrap(),
         scores.1.as_ref().parse().unwrap(),
     );
 
+    get_score(mine, theirs)
+}
+
+fn get_loser(other: &RockPaperScissors) -> RockPaperScissors {
+    match other {
+        RockPaperScissors::Rock => RockPaperScissors::Scissors,
+        RockPaperScissors::Paper => RockPaperScissors::Rock,
+        RockPaperScissors::Scissors => RockPaperScissors::Paper,
+    }
+}
+
+fn get_winner(other: &RockPaperScissors) -> RockPaperScissors {
+    match other {
+        RockPaperScissors::Rock => RockPaperScissors::Paper,
+        RockPaperScissors::Paper => RockPaperScissors::Scissors,
+        RockPaperScissors::Scissors => RockPaperScissors::Rock,
+    }
+}
+
+fn score_game_2<T: AsRef<str>>(game: (T, T)) -> i32 {
+    let theirs: RockPaperScissors = game.0.as_ref().parse().unwrap();
+    let mine = match game.1.as_ref() {
+        "X" => get_loser(&theirs),
+        "Y" => theirs,
+        "Z" => get_winner(&theirs),
+        _ => panic!("Invalid input"),
+    };
+
+    get_score(mine, theirs)
+}
+
+fn get_score(mine: RockPaperScissors, theirs: RockPaperScissors) -> i32 {
     let game_score = match &mine.partial_cmp(&theirs).unwrap() {
         Ordering::Greater => 6,
         Ordering::Less => 0,
         Ordering::Equal => 3,
     };
-
     let my_play_score = match &mine {
         RockPaperScissors::Rock => 1,
         RockPaperScissors::Paper => 2,
@@ -121,15 +160,27 @@ In the second round, your opponent will choose Paper (B), and you should choose 
 The third round is a draw with both players choosing Scissors, giving you a score of 3 + 3 = 6.
 In this example, if you were to follow the strategy guide, you would get a total score of 15 (8 + 1 + 6). */
 #[test]
-fn score_function_test() {
+fn score_game_1_test() {
     assert_eq!(score_game_1(("A", "Y")), 8);
     assert_eq!(score_game_1(("B", "X")), 1);
     assert_eq!(score_game_1(("C", "Z")), 6);
 }
 
 #[test]
-fn score_tournament_test() {
+fn score_tournament_1_test() {
     assert_eq!(score_tournament_1("./test2.txt"), 15);
+}
+
+#[test]
+fn score_game_2_test() {
+    assert_eq!(score_game_2(("A", "Y")), 4);
+    assert_eq!(score_game_2(("B", "X")), 1);
+    assert_eq!(score_game_2(("C", "Z")), 7);
+}
+
+#[test]
+fn score_tournament_2_test() {
+    assert_eq!(score_tournament_2("./test2.txt"), 12);
 }
 
 #[test]
