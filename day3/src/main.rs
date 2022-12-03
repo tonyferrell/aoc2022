@@ -1,7 +1,12 @@
-use std::{collections::HashSet, fs::File, io::{self, BufRead}};
+use std::{
+    collections::HashSet,
+    fs::File,
+    io::{self, BufRead},
+};
 
 fn main() {
-    println!("Priority Sum: {}", score_file("./input.txt"))
+    println!("Priority Sum: {}", score_file("./input.txt"));
+    println!("Badge Score: {}", badge_score_file("./input.txt"));
 }
 
 fn score_line(line: &str) -> i32 {
@@ -11,6 +16,23 @@ fn score_line(line: &str) -> i32 {
 
     let both = left.intersection(&right);
     both.into_iter().map(|x| get_priority(*x)).sum()
+}
+
+fn get_badge_scores<T: AsRef<str>>(elves: &[T]) -> i32 {
+    elves
+        .chunks(3)
+        .map(|chunk| {
+            *chunk
+                .iter()
+                .map(|x| (*x.as_ref()).chars().collect::<HashSet<_>>())
+                .reduce(|acc, next| acc.intersection(&next).into_iter().map(|x| *x).collect())
+                .unwrap()
+                .iter()
+                .next()
+                .unwrap()
+        })
+        .map(get_priority)
+        .sum()
 }
 
 fn get_priority(c: char) -> i32 {
@@ -24,7 +46,15 @@ fn get_priority(c: char) -> i32 {
 }
 
 fn score_file(filename: &str) -> i32 {
-   read_lines(filename).unwrap().iter().map(|x| score_line(x)).sum()
+    read_lines(filename)
+        .unwrap()
+        .iter()
+        .map(|x| score_line(x))
+        .sum()
+}
+
+fn badge_score_file(filename: &str) -> i32 {
+    get_badge_scores(&read_lines(filename).unwrap())
 }
 
 fn read_lines(filename: &str) -> Option<Vec<String>> {
@@ -82,4 +112,28 @@ fn test_simple_score_line() {
 #[test]
 fn test_score_input() {
     assert_eq!(score_file("./test.txt"), 157)
+}
+
+#[test]
+fn test_simple_chunks() {
+    let group1 = vec![
+        "vJrwpWtwJgWrhcsFMMfFFhFp",
+        "jqHRNqRjqzjGDLGLrsFMfFZSrLrFZsSL",
+        "PmmdzqPrVvPwwTWBwg",
+    ];
+
+    assert_eq!(get_badge_scores(&group1), 18);
+
+    let group2 = vec![
+        "wMqvLMZHhHMvwLHjbvcjnnSBnvTQFn",
+        "ttgJtRGJQctTZtZT",
+        "CrZsJsPPZsGzwwsLwLmpwMDw",
+    ];
+
+    assert_eq!(get_badge_scores(&group2), 52)
+}
+
+#[test]
+fn test_badge_scores() {
+    assert_eq!(badge_score_file("./test.txt"), 70);
 }
