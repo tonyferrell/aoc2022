@@ -6,7 +6,7 @@ fn main() {
     read_input_file(&aoc_file::get_file_param());
 }
 
-fn read_input_file(filename: &str) -> Game {
+fn read_input_file(filename: &str) -> (Game, Vec<Move>) {
     let lines = aoc_file::read_lines(filename).expect("please only give us files that exist.");
     let board: Vec<Vec<_>> = lines
         .iter()
@@ -20,7 +20,7 @@ fn read_input_file(filename: &str) -> Game {
     // Game board with no columns, we'll handle that as we add them.
     let mut game_board = Game { stacks: vec![] };
 
-    for line in board {
+    for line in board.iter().rev() {
         let parse_board = line
             .chunks(4)
             .map(|col_val| col_val[1])
@@ -32,25 +32,38 @@ fn read_input_file(filename: &str) -> Game {
         }
     }
 
-    println!("Instructions:");
-    for instruction in instructions {
-        println!("{}", instruction);
-    }
+    let instructions: Vec<_> = instructions
+        .iter()
+        .flat_map(|line| {
+            let mut tokens = line.split_whitespace();
+            let count: usize = tokens.nth(1).unwrap().parse().unwrap();
+            let from: usize = tokens.nth(1).unwrap().parse().unwrap();
+            let to: usize = tokens.nth(1).unwrap().parse().unwrap();
 
-    game_board
+            (1..count + 1)
+                .map(|_| Move::new(from, to))
+                .collect::<Vec<_>>()
+        })
+        .collect();
+
+    (game_board, instructions)
 }
 
+#[derive(PartialEq, Eq, Debug)]
+struct Move {
+    from: usize,
+    to: usize,
+}
+
+impl Move {
+    fn new(from: usize, to: usize) -> Move {
+        Move { from, to }
+    }
+}
 #[non_exhaustive]
+#[derive(Debug)]
 struct Game {
     stacks: Vec<Vec<char>>,
-}
-
-impl Debug for Game {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Game")
-            .field("stacks", &self.stacks)
-            .finish()
-    }
 }
 
 impl Game {
@@ -68,7 +81,10 @@ impl Game {
             .push(val);
     }
 
-    fn make_move(&mut self, source: usize, dest: usize) -> Result<(), String> {
+    fn make_move(&mut self, the_move: &Move) -> Result<(), String> {
+        let source = the_move.from;
+        let dest = the_move.to;
+
         let size = self.stacks.len();
         if source < 1 || source > size {
             return Err(format!("Source range out of bounds: {}", source));
@@ -91,15 +107,88 @@ impl Game {
 
         Ok(())
     }
+
+    fn get_stack_top(&self) -> String {
+        let mut top = String::new();
+        for stack in &self.stacks {
+            match stack.last() {
+                Some(val) => top.push(*val),
+                None => (),
+            };
+        }
+        top
+    }
+}
+
+fn play_game(filename: &str) -> Game {
+    let (mut game, instructions) = read_input_file(filename);
+
+    dbg!(&game);
+
+    for m in instructions {
+        game.make_move(&m).unwrap();
+        dbg!(&m, &game);
+    }
+
+    game
 }
 
 #[test]
 fn parse_board_test() {
-    let game = read_input_file("./test1.txt");
+    let (game, instructions) = read_input_file("./test1.txt");
     // println!("{:#?}", game);
 
     // Write some real asserts here
-    assert_eq!(game.stacks[0], vec!['N', 'Z']);
-    assert_eq!(game.stacks[1], vec!['D', 'C', 'M']);
+    assert_eq!(game.stacks[0], vec!['Z', 'N']);
+    assert_eq!(game.stacks[1], vec!['M', 'C', 'D']);
     assert_eq!(game.stacks[2], vec!['P']);
+
+    assert_eq!(
+        instructions,
+        vec![
+            Move::new(2, 1),
+            Move::new(1, 3),
+            Move::new(1, 3),
+            Move::new(1, 3),
+            Move::new(2, 1),
+            Move::new(2, 1),
+            Move::new(1, 2),
+        ]
+    )
+}
+
+#[test]
+fn parse_board_pop_test() {
+    let (mut game, _) = read_input_file("./test1.txt");
+    // println!("{:#?}", game);
+
+    dbg!(&game);
+    assert_eq!(game.get_stack_top(), "NDP");
+
+    assert_eq!(game.stacks[0], vec!['Z', 'N']);
+    assert_eq!(game.stacks[1], vec!['M', 'C', 'D']);
+    assert_eq!(game.stacks[2], vec!['P']);
+
+    game.make_move(&Move::new(1, 2)).unwrap();
+    dbg!(&game);
+    assert_eq!(game.stacks[1], vec!['M', 'C', 'D', 'N' ]);
+    assert_eq!(game.get_stack_top(), "ZNP");
+    game.make_move(&Move::new(3,1)).unwrap();
+    dbg!(&game);
+}
+
+#[test]
+fn get_stack_top_test() {
+    let g = Game {
+        stacks: vec![vec!['A', 'B'], vec!['C', 'D'], vec!['E', 'F', 'G']],
+    };
+
+    assert_eq!(dbg!(g).get_stack_top(), "BDG")
+}
+
+#[test]
+fn play_game_test() {
+    let game = play_game("./test1.txt");
+
+    assert_eq!(game.get_stack_top(), "CMZ");
 }
