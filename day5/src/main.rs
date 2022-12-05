@@ -3,7 +3,8 @@ use std::fmt::Debug;
 mod aoc_file;
 
 fn main() {
-    read_input_file(&aoc_file::get_file_param());
+    let game = play_game(&aoc_file::get_file_param());
+    println!("Stack Tops Letters: {}", game.get_stack_top());
 }
 
 fn read_input_file(filename: &str) -> (Game, Vec<Move>) {
@@ -123,11 +124,8 @@ impl Game {
 fn play_game(filename: &str) -> Game {
     let (mut game, instructions) = read_input_file(filename);
 
-    dbg!(&game);
-
     for m in instructions {
         game.make_move(&m).unwrap();
-        dbg!(&m, &game);
     }
 
     game
