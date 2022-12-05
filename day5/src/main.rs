@@ -10,23 +10,25 @@ fn read_input_file(filename: &str) -> Game {
     let lines = aoc_file::read_lines(filename).expect("please only give us files that exist.");
     let board: Vec<Vec<_>> = lines
         .iter()
-        .take_while(|x| !x.is_empty())
         .map(|l| l.chars().collect::<Vec<_>>())
+        // Kind of janky, but take until we get the column definitions (which are the only numerals)
+        .take_while(|x| x.get(1) != Some(&'1'))
         .collect();
+
     let instructions: Vec<_> = lines.iter().skip_while(|x| !x.is_empty()).skip(1).collect();
 
     // Game board with no columns, we'll handle that as we add them.
     let mut game_board = Game { stacks: vec![] };
 
     for line in board {
-        let parse_board = line 
+        let parse_board = line
             .chunks(4)
-            .map(|col_val| col_val.get(1).unwrap())
+            .map(|col_val| col_val[1])
             .enumerate()
             .filter(|(_, v)| !v.is_whitespace());
 
         for (column, value) in parse_board {
-            game_board.add(*value, column + 1);
+            game_board.add(value, column + 1);
         }
     }
 
@@ -35,7 +37,7 @@ fn read_input_file(filename: &str) -> Game {
         println!("{}", instruction);
     }
 
-   game_board 
+    game_board
 }
 
 #[non_exhaustive]
@@ -76,13 +78,12 @@ impl Game {
 
         let source = source - 1;
         let dest = dest - 1;
-
-        let source_value = dbg!(self
+        let source_value = self
             .stacks
             .get_mut(source)
             .expect("destination column should exist")
             .pop()
-            .expect("destination column should not be empty"));
+            .expect("destination column should not be empty");
         self.stacks
             .get_mut(dest)
             .expect("source column should exist")
@@ -94,9 +95,11 @@ impl Game {
 
 #[test]
 fn parse_board_test() {
-    let game = dbg!(read_input_file("./test1.txt"));
-    println!("{:#?}", game);
+    let game = read_input_file("./test1.txt");
+    // println!("{:#?}", game);
 
     // Write some real asserts here
-    todo!();
+    assert_eq!(game.stacks[0], vec!['N', 'Z']);
+    assert_eq!(game.stacks[1], vec!['D', 'C', 'M']);
+    assert_eq!(game.stacks[2], vec!['P']);
 }
