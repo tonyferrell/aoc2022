@@ -35,15 +35,12 @@ fn read_input_file(filename: &str) -> (Game, Vec<Move>) {
 
     let instructions: Vec<_> = instructions
         .iter()
-        .flat_map(|line| {
+        .map(|line| {
             let mut tokens = line.split_whitespace();
             let count: usize = tokens.nth(1).unwrap().parse().unwrap();
             let from: usize = tokens.nth(1).unwrap().parse().unwrap();
             let to: usize = tokens.nth(1).unwrap().parse().unwrap();
-
-            (1..count + 1)
-                .map(|_| Move::new(from, to))
-                .collect::<Vec<_>>()
+            Move::new(from, to, count)
         })
         .collect();
 
@@ -54,13 +51,19 @@ fn read_input_file(filename: &str) -> (Game, Vec<Move>) {
 struct Move {
     from: usize,
     to: usize,
+    count: usize,
 }
 
 impl Move {
-    fn new(from: usize, to: usize) -> Move {
-        Move { from, to }
+    fn new_single(from: usize, to: usize) -> Move {
+        Move { from, to, count: 1 }
+    }
+
+    fn new(from: usize, to: usize, count: usize) -> Move {
+        Move { from, to, count }
     }
 }
+
 #[non_exhaustive]
 #[derive(Debug)]
 struct Game {
@@ -95,16 +98,28 @@ impl Game {
 
         let source = source - 1;
         let dest = dest - 1;
-        let source_value = self
+        let mut move_stack: Vec<char> = Vec::new();
+        let source_col = self
             .stacks
             .get_mut(source)
-            .expect("destination column should exist")
-            .pop()
-            .expect("destination column should not be empty");
-        self.stacks
+            .expect("destination column should exist");
+
+        for _ in 1..the_move.count + 1 {
+            move_stack.push(
+                source_col
+                    .pop()
+                    .expect("destination column should not be empty"),
+            );
+        }
+
+        let desitination_col = self
+            .stacks
             .get_mut(dest)
-            .expect("source column should exist")
-            .push(source_value);
+            .expect("source column should exist");
+
+        for value in move_stack.iter().rev() {
+            desitination_col.push(*value);
+        }
 
         Ok(())
     }
@@ -144,13 +159,10 @@ fn parse_board_test() {
     assert_eq!(
         instructions,
         vec![
-            Move::new(2, 1),
-            Move::new(1, 3),
-            Move::new(1, 3),
-            Move::new(1, 3),
-            Move::new(2, 1),
-            Move::new(2, 1),
-            Move::new(1, 2),
+            Move::new_single(2, 1),
+            Move::new(1, 3, 3),
+            Move::new(2, 1, 2),
+            Move::new_single(1, 2),
         ]
     )
 }
@@ -167,11 +179,11 @@ fn parse_board_pop_test() {
     assert_eq!(game.stacks[1], vec!['M', 'C', 'D']);
     assert_eq!(game.stacks[2], vec!['P']);
 
-    game.make_move(&Move::new(1, 2)).unwrap();
+    game.make_move(&Move::new_single(1, 2)).unwrap();
     dbg!(&game);
-    assert_eq!(game.stacks[1], vec!['M', 'C', 'D', 'N' ]);
+    assert_eq!(game.stacks[1], vec!['M', 'C', 'D', 'N']);
     assert_eq!(game.get_stack_top(), "ZNP");
-    game.make_move(&Move::new(3,1)).unwrap();
+    game.make_move(&Move::new_single(3, 1)).unwrap();
     dbg!(&game);
 }
 
@@ -188,5 +200,5 @@ fn get_stack_top_test() {
 fn play_game_test() {
     let game = play_game("./test1.txt");
 
-    assert_eq!(game.get_stack_top(), "CMZ");
+    assert_eq!(game.get_stack_top(), "MCD");
 }
