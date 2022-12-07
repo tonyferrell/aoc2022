@@ -9,15 +9,33 @@ use new_tree::*;
 use terminal_parser::*;
 
 fn main() {
-    println!("Hello, world!");
+    let root = load_file(&aoc_file::get_file_param()).unwrap();
+    let directories = flatten_directories(Rc::clone(&root));
+    let sum = directories
+        .iter()
+        .filter_map(|(_, size)| if size < &100000 { Some(size) } else { None })
+        .sum::<usize>();
+
+    let needed = 30000000 - (70000000 - root.borrow().size);
+
+    let mut smallest = directories
+        .iter()
+        .filter(|(_, size)| size > &needed)
+        .collect::<Vec<_>>();
+
+    smallest.sort_by_key(|(_, size)| size);
+    let solution = dbg!(*smallest.first().unwrap());
+
+    println!("Sum1: {}", sum);
+    println!("We need: {}, and the smallest: {:?}", needed, solution)
 }
 
-// fn load_file(filename: &str) -> Rc<TreeNode> {
-//     let lines = aoc_file::read_lines(filename).unwrap();
-//     let commands = lines.iter().map(|x| x.parse::<Terminal>().unwrap());
+fn load_file(filename: &str) -> Result<Rc<RefCell<DirectoryNode>>, String> {
+    let lines = aoc_file::read_lines(filename).unwrap();
+    let commands = lines.iter().map(|x| x.parse::<Terminal>().unwrap());
 
-//     process_commands(commands.into_iter())
-// }
+    process_commands(commands.into_iter())
+}
 
 fn process_commands<T: Iterator<Item = Terminal>>(
     lines: T,
@@ -34,7 +52,7 @@ fn process_commands<T: Iterator<Item = Terminal>>(
                         let child = current_location.borrow().get_child(&into);
                         current_location = match child {
                             Some(child) => child,
-                            None => DirectoryNode::new(Some(Rc::clone(&current_location)), into.to_owned())
+                            None => todo!(),
                         }
                     }
                     ChangeDir::Out => {
@@ -49,11 +67,17 @@ fn process_commands<T: Iterator<Item = Terminal>>(
                     }
                     ChangeDir::Root => current_location = Rc::clone(&root),
                 },
-                TermCommand::Ls => todo!(),
+                TermCommand::Ls => (),
             },
             Terminal::LsResult(ls_result) => match ls_result {
-                LsResult::FileContents(_) => todo!(),
-                LsResult::Directory(_) => todo!(),
+                LsResult::FileContents(file) => current_location
+                    .borrow_mut()
+                    .add_child_file(file.filename, file.size),
+                LsResult::Directory(name) => {
+                    let new_node =
+                        DirectoryNode::new(Some(Rc::clone(&current_location)), name.to_owned());
+                    current_location.borrow_mut().add_child_dir(new_node);
+                }
             },
         }
     }
@@ -61,51 +85,73 @@ fn process_commands<T: Iterator<Item = Terminal>>(
     Ok(Rc::clone(&root))
 }
 
-#[test]
-fn process_move_root_test() {
-    // let root =
-    //     process_commands(vec![Terminal::Command(TermCommand::Cd(ChangeDir::Root))].into_iter());
-    // assert_eq!(
-    //     *root,
-    //     TreeNode::Directory(RefCell::new(DirectoryData {
-    //         parent: None,
-    //         name: "/".to_owned(),
-    //         total_size: 0,
-    //         children: vec![]
-    //     }))
-    // );
+fn flatten_directories(root: Rc<RefCell<DirectoryNode>>) -> Vec<(String, usize)> {
+    let mut to_walk = vec![root];
+    let mut dirs: Vec<(String, usize)> = vec![];
+
+    while let Some(next) = to_walk.pop() {
+        let next = next.borrow();
+        dirs.push((next.name.to_owned(), next.size));
+        for child in &next.directory_children {
+            to_walk.push(Rc::clone(child));
+        }
+    }
+
+    dirs
 }
 
 #[test]
 fn file_children_test() {
-    // let root = process_commands(
-    //     vec![
-    //         Terminal::Command(TermCommand::Cd(ChangeDir::Root)),
-    //         Terminal::LsResult(LsResult::FileContents(terminal_parser::FileData {
-    //             size: 14,
-    //             filename: "unk.png".to_owned(),
-    //         })),
-    //     ]
-    //     .into_iter(),
-    // );
+    let root = process_commands(
+        vec![
+            Terminal::Command(TermCommand::Cd(ChangeDir::Root)),
+            Terminal::LsResult(LsResult::FileContents(terminal_parser::FileData {
+                size: 14,
+                filename: "unk.png".to_owned(),
+            })),
+        ]
+        .into_iter(),
+    )
+    .unwrap();
 
-    // assert_eq!(
-    //     *root,
-    //     TreeNode::Directory(RefCell::new(DirectoryData {
-    //         parent: None,
-    //         name: "/".to_owned(),
-    //         total_size: 14,
-    //         children: vec![TreeNode::new_file(
-    //             Rc::downgrade(&root),
-    //             "unk.png".to_owned(),
-    //             14
-    //         )]
-    //     }))
-    // );
+    assert_eq!(
+        *root.borrow(),
+        DirectoryNode {
+            parent: None,
+            name: "/".to_owned(),
+            size: 14,
+            directory_children: vec![],
+            file_children: vec!["unk.png".to_owned()].into_iter().collect(),
+        }
+    );
 }
 
 #[test]
 fn read_file_test() {
-    // let root = load_file("./test.txt");
-    // assert_eq!(root.get_size(), 4);
+    let root = load_file("./test.txt").unwrap();
+    assert_eq!(root.borrow().size, 48381165);
+
+    assert_eq!(
+        flatten_directories(root)
+            .iter()
+            .filter_map(|(_, size)| if size < &100000 { Some(size) } else { None })
+            .sum::<usize>(),
+        95437
+    );
+}
+
+#[test]
+fn small_thing_test() {
+    let root = load_file("./test.txt").unwrap();
+    let needed = 30000000 - (70000000 - root.borrow().size);
+
+    let directories = flatten_directories(Rc::clone(&root));
+    let mut smallest = directories
+        .iter()
+        .filter(|(_, size)| size > &needed)
+        .collect::<Vec<_>>();
+
+    smallest.sort_by_key(|(_, size)| size);
+    let solution = dbg!(*smallest.first().unwrap());
+    assert_eq!(solution.1, 24933642);
 }

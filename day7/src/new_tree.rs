@@ -36,9 +36,18 @@ impl DirectoryNode {
         self.directory_children.push(new);
     }
 
+    fn increase_size(&mut self, size: usize) {
+        self.size += size;
+
+        if let Some(parent) = &self.parent {
+            parent.borrow_mut().increase_size(size);
+        }
+
+    }
+
     pub fn add_child_file(&mut self, name: String, size: usize) {
         if self.file_children.insert(name) {
-            self.size += size
+            self.increase_size(size)
         }
     }
 }
