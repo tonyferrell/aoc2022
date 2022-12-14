@@ -8,8 +8,8 @@ pub struct MatrixIndex {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Rectangle {
-    upper_left: MatrixIndex,
-    lower_right: MatrixIndex,
+    pub upper_left: MatrixIndex,
+    pub lower_right: MatrixIndex,
 }
 
 impl Rectangle {
@@ -60,6 +60,17 @@ impl From<[usize; 2]> for MatrixIndex {
     }
 }
 
+impl<T> Index<&MatrixIndex> for Matrix<T>
+where
+    T: Clone + Default,
+{
+    type Output = T;
+
+    fn index(&self, MatrixIndex { row, col }: &MatrixIndex) -> &Self::Output {
+        &self.data[row * self.width + col]
+    }
+}
+
 impl<T> Index<MatrixIndex> for Matrix<T>
 where
     T: Clone + Default,
@@ -77,10 +88,19 @@ where
 {
     fn index_mut(&mut self, MatrixIndex { row, col }: MatrixIndex) -> &mut Self::Output {
         self.interesting_window = Some(match &self.interesting_window {
-            Some(current_window) => current_window.include(MatrixIndex { row, col }),
+            Some(current_window) => current_window.include(MatrixIndex {
+                row: row,
+                col: col,
+            }),
             None => Rectangle {
-                upper_left: MatrixIndex { row, col },
-                lower_right: MatrixIndex { row, col },
+                upper_left: MatrixIndex {
+                    row: row,
+                    col: col,
+                },
+                lower_right: MatrixIndex {
+                    row: row,
+                    col: col,
+                },
             },
         });
 
@@ -94,7 +114,7 @@ fn mut_access_test() {
     let mut i = 1;
     for r in 0..3 {
         for c in 0..3 {
-            m[[r, c].into()] = i;
+            m[MatrixIndex { row: r, col: c }] = i;
             i += 1;
         }
     }

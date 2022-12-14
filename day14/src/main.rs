@@ -7,20 +7,26 @@ use aoc_file::read_lines;
 use itertools::Itertools;
 use map::*;
 use point::*;
+use SandState::*;
 
-use crate::matrix::MatrixIndex;
+enum SandState {
+    Moved(Point),
+    Stopped(Point),
+    Escaped,
+}
 
 fn main() {
     let map: Map = parse_file_to_structure_definitions(&aoc_file::get_file_param())
         .unwrap()
         .into();
     println!("{}", map.data);
+    play_sand_game(map);
 }
 
 fn parse_file_to_structure_definitions(filename: &str) -> Result<MapSpec, ()> {
     let lines = read_lines(filename).ok_or(())?;
-    let mut upper_left: Option<Point> = None;
-    let mut lower_right: Option<Point> = None;
+    let mut max_x = 0;
+    let mut max_y = 0;
 
     let rock_formations = lines
         .iter()
@@ -33,14 +39,9 @@ fn parse_file_to_structure_definitions(filename: &str) -> Result<MapSpec, ()> {
                             .map(|x| x.parse::<usize>().unwrap())
                             .collect_tuple()
                             .unwrap();
-                        upper_left = match &upper_left {
-                            None => Some(Point(x, y)),
-                            Some(ul) => Some(Point(ul.0.min(x), ul.1.min(y))),
-                        };
-                        lower_right = match &lower_right {
-                            None => Some(Point(x, y)),
-                            Some(ul) => Some(Point(ul.0.max(x), ul.1.max(y))),
-                        };
+                        max_x = max_x.max(x);
+                        max_y = max_y.max(y);
+
                         Point(x, y)
                     })
                     .collect::<Vec<_>>(),
@@ -48,20 +49,59 @@ fn parse_file_to_structure_definitions(filename: &str) -> Result<MapSpec, ()> {
         })
         .collect::<Vec<_>>();
 
-    let upper_left = upper_left.unwrap_or_default();
-    let lower_right = lower_right.unwrap_or_default();
-
-    let width = &lower_right.0 - &upper_left.0 + 1;
-    let height = &lower_right.1 - &upper_left.1 + 1;
+    // Leave room for falling sand? Not sure if the edge of the map should be important here.
+    let width = max_x + 10;
+    let height = max_y + 1;
 
     Ok(MapSpec {
-        upper_left,
         width,
         height,
         rock_formations,
     })
 }
 
+fn tick(position: Point, map: &Map) -> SandState {
+    let potenial_moves = [
+        position.straight_down(),
+        position.down_left(),
+        position.down_right(),
+    ];
+
+    for the_move in potenial_moves {
+        if the_move.1 >= map.data.height {
+            return Escaped;
+        } else if let MapCell::Air = map[&the_move.into()] {
+            return Moved(the_move);
+        }
+    }
+
+    Stopped(position)
+}
+fn play_sand_game(mut map: Map) -> Map {
+    let mut counter = 0;
+    loop {
+        // New little grain of sand!
+        let mut position = Point(500, 0);
+        counter += 1;
+
+        loop {
+            match tick(position, &map) {
+                Moved(pos) => {
+                    position = pos;
+                }
+                Stopped(position) => {
+                    map[position] = MapCell::Sand;
+                    println!("{}", map.data);
+                    break;
+                }
+                Escaped => {
+                    println!("Went for {}", counter-1);
+                    return map;
+                }
+            }
+        }
+    }
+}
 #[test]
 fn test_map_parse_from_spec() {
     let map: Map = parse_file_to_structure_definitions("./test.txt")
@@ -72,15 +112,13 @@ fn test_map_parse_from_spec() {
 #[test]
 fn parse_file_structures_test() {
     let MapSpec {
-        upper_left,
         width,
         height,
         rock_formations,
     } = parse_file_to_structure_definitions("./test.txt").expect("file should be readable");
 
-    assert_eq!(upper_left, Point(494, 4));
-    assert_eq!(width, 10);
-    assert_eq!(height, 6);
+    assert_eq!(width, 1006);
+    assert_eq!(height, 18);
     assert_eq!(rock_formations.len(), 2);
     assert_eq!(
         rock_formations[0].0,
@@ -152,12 +190,4 @@ fn line_generation_test() {
             Point(502, 9),
         ]
     );
-}
-
-#[test]
-fn compute_offsets_test() {
-    let datum = Point(494, 4);
-    assert_eq!(Map::compute_offset(&datum, &Point(494, 4)), Point(0, 0));
-    assert_eq!(Map::compute_offset(&datum, &Point(503, 9)), Point(9, 5));
-    assert_eq!(Map::compute_offset(&datum, &Point(495, 6)), Point(1, 2));
 }

@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    matrix::{Matrix, MatrixIndex},
+    matrix::{Matrix, MatrixIndex, Rectangle},
     point::Point,
 };
 
@@ -17,20 +17,45 @@ impl Display for MapCell {
                 MapCell::Air => '.',
                 MapCell::Rock => '#',
                 MapCell::Sand => 'o',
+                MapCell::Entrance => '+',
             }
         )
     }
 }
 
+impl Display for Rectangle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}-{:?}", self.upper_left, self.lower_right)
+    }
+}
 impl Display for Matrix<MapCell> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-         writeln!(f, "({}x{}) Matrix", self.height, self.width)?;
+        if let Some(window) = &self.interesting_window {
+            writeln!(
+                f,
+                "({}x{}) Matrix. Viewing ({})",
+                &self.height, &self.width, &window
+            )?;
 
-        for row in 0..self.height {
-            for i in self.row(row) {
-                write!(f, "{}", i)?;
+            for row in window.upper_left.row..=window.lower_right.row {
+                for col in window.upper_left.col..=window.lower_right.col {
+                    write!(f, "{}", &self[MatrixIndex { row, col }])?;
+                }
+                write!(f, "\n")?;
             }
-            write!(f, "\n")?;
+        } else {
+            writeln!(
+                f,
+                "({}x{}) Matrix. Viewing (ALL)",
+                &self.height, &self.width
+            )?;
+
+            for row in 0..self.height {
+                for i in self.row(row) {
+                    write!(f, "{}", i)?;
+                }
+                write!(f, "\n")?;
+            }
         }
 
         Ok(())
@@ -39,7 +64,6 @@ impl Display for Matrix<MapCell> {
 pub struct RockFormation(pub Vec<Point>);
 
 pub struct MapSpec {
-    pub upper_left: Point,
     pub width: usize,
     pub height: usize,
     pub rock_formations: Vec<RockFormation>,
@@ -50,6 +74,7 @@ pub enum MapCell {
     Air,
     Rock,
     Sand,
+    Entrance,
 }
 
 impl Default for MapCell {
@@ -63,20 +88,11 @@ pub struct Map {
     pub data: Matrix<MapCell>,
 }
 
-impl Map {
-    pub fn compute_offset(datum: &Point, point: &Point) -> Point {
-        *point - *datum
-    }
-}
-
 impl Index<[usize; 2]> for Map {
     type Output = MapCell;
 
     fn index(&self, [row, col]: [usize; 2]) -> &Self::Output {
-        let row = row - self.map_spec.upper_left.0;
-        let col = col - self.map_spec.upper_left.1;
-
-        &self.data[[row, col].into()]
+        &self.data[MatrixIndex { row, col }]
     }
 }
 
@@ -85,7 +101,16 @@ impl Index<Point> for Map {
 
     fn index(&self, index: Point) -> &Self::Output {
         let mi: MatrixIndex = index.into();
-        &self.data[mi]
+        &self.data[&mi]
+    }
+}
+
+impl Index<&Point> for Map {
+    type Output = MapCell;
+
+    fn index(&self, index: &Point) -> &Self::Output {
+        let mi: MatrixIndex = (*index).into();
+        &self.data[&mi]
     }
 }
 
@@ -106,10 +131,12 @@ impl From<MapSpec> for Map {
         for RockFormation(formation) in m.map_spec.rock_formations.iter() {
             for window in formation.windows(2) {
                 for p in Point::line_expand(&window[0]..&window[1]) {
-                    m.data[Map::compute_offset(&m.map_spec.upper_left, &p).into()] = MapCell::Rock;
+                    m.data[p.into()] = MapCell::Rock;
                 }
             }
         }
+
+        m.data[Point(500, 0).into()] = MapCell::Entrance;
 
         m
     }

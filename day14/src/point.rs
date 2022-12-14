@@ -13,6 +13,18 @@ impl Point {
         (first.0.clone()..=second.0)
             .flat_map(move |row| (first.1..=second.1).map(move |col| Point(row, col)))
     }
+
+    pub fn straight_down(&self) -> Point {
+        Point(self.0, self.1 + 1)
+    }
+
+    pub fn down_left(&self) -> Point {
+        Point(self.0 - 1, self.1 + 1)
+    }
+
+    pub fn down_right(&self) -> Point {
+        Point(self.0 + 1, self.1 + 1)
+    }
 }
 
 impl Sub for Point {
