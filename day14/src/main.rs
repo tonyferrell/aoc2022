@@ -20,8 +20,8 @@ fn main() {
         .unwrap()
         .into();
     let (count, map) = play_sand_game(map);
-    println!("Dropped {} grains of sand", count);
     println!("{}", map.data);
+    println!("Dropped {} grains of sand", count);
 }
 
 fn parse_file_to_structure_definitions(filename: &str) -> Result<MapSpec, ()> {
@@ -29,7 +29,7 @@ fn parse_file_to_structure_definitions(filename: &str) -> Result<MapSpec, ()> {
     let mut max_x = 0;
     let mut max_y = 0;
 
-    let rock_formations = lines
+    let mut rock_formations = lines
         .iter()
         .map(|line| {
             RockFormation(
@@ -51,8 +51,13 @@ fn parse_file_to_structure_definitions(filename: &str) -> Result<MapSpec, ()> {
         .collect::<Vec<_>>();
 
     // Leave room for falling sand? Not sure if the edge of the map should be important here.
-    let width = max_x + 10;
-    let height = max_y + 1;
+    let width = 2 * (max_x + 1);
+    let height = max_y + 3;
+
+    rock_formations.push(RockFormation(vec![
+        Point(0, height - 1),
+        Point(width - 1, height - 1),
+    ]));
 
     Ok(MapSpec {
         width,
@@ -92,6 +97,10 @@ fn play_sand_game(mut map: Map) -> (usize, Map) {
                 }
                 Stopped(position) => {
                     map[position] = MapCell::Sand;
+                    if position == Point(500, 0) {
+                        // GAME OVER
+                        return (counter, map);
+                    }
                     // println!("{}", map.data);
                     break;
                 }
@@ -117,9 +126,9 @@ fn parse_file_structures_test() {
         rock_formations,
     } = parse_file_to_structure_definitions("./test.txt").expect("file should be readable");
 
-    assert_eq!(width, 1006);
-    assert_eq!(height, 18);
-    assert_eq!(rock_formations.len(), 2);
+    // assert_eq!(width, 1006);
+    assert_eq!(height, s8);
+    assert_eq!(rock_formations.len(), 3);
     assert_eq!(
         rock_formations[0].0,
         vec![Point(498, 4), Point(498, 6), Point(496, 6)]
