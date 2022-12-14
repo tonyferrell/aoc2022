@@ -1,9 +1,10 @@
-use std::ops::{Index, IndexMut};
+use std::ops::{Index, IndexMut, Range};
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Matrix<T> {
-    height: usize,
-    width: usize,
+    // interesting_window: Option<Range<usize>>,
+    pub height: usize,
+    pub width: usize,
     data: Vec<T>,
 }
 
@@ -11,8 +12,15 @@ impl<T> Matrix<T>
 where
     T: Clone + Default,
 {
-    fn new(height: usize, width: usize) -> Self {
+    pub fn row(&self, row_number: usize) -> &[T] {
+        let start_idx = self.width * row_number;
+        let end_idx = &start_idx + self.width - 1;
+
+        &self.data[start_idx..end_idx]
+    }
+    pub fn new(height: usize, width: usize) -> Self {
         Matrix {
+            // interesting_window: None,
             height,
             width,
             data: vec![Default::default(); width * height],
