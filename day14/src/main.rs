@@ -19,8 +19,9 @@ fn main() {
     let map: Map = parse_file_to_structure_definitions(&aoc_file::get_file_param())
         .unwrap()
         .into();
+    let (count, map) = play_sand_game(map);
+    println!("Dropped {} grains of sand", count);
     println!("{}", map.data);
-    play_sand_game(map);
 }
 
 fn parse_file_to_structure_definitions(filename: &str) -> Result<MapSpec, ()> {
@@ -77,7 +78,7 @@ fn tick(position: Point, map: &Map) -> SandState {
 
     Stopped(position)
 }
-fn play_sand_game(mut map: Map) -> Map {
+fn play_sand_game(mut map: Map) -> (usize, Map) {
     let mut counter = 0;
     loop {
         // New little grain of sand!
@@ -91,12 +92,11 @@ fn play_sand_game(mut map: Map) -> Map {
                 }
                 Stopped(position) => {
                     map[position] = MapCell::Sand;
-                    println!("{}", map.data);
+                    // println!("{}", map.data);
                     break;
                 }
                 Escaped => {
-                    println!("Went for {}", counter-1);
-                    return map;
+                    return (counter - 1, map);
                 }
             }
         }
