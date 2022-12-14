@@ -8,7 +8,7 @@ use std::{
 
 use aoc_file::read_lines;
 use itertools::Itertools;
-use matrix::Matrix;
+use matrix::{Matrix, MatrixIndex};
 use std::ops::{Range, Sub};
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Default)]
@@ -75,11 +75,8 @@ struct Map {
 }
 
 impl Map {
-    fn compute_offset(datum: &Point, point: &Point) -> [usize; 2] {
-        let row = point.0 - datum.0;
-        let col = point.1 - datum.1;
-
-        [row, col]
+    fn compute_offset(datum: &Point, point: &Point) -> Point {
+        *point - *datum
     }
 }
 
@@ -90,37 +87,33 @@ impl Index<[usize; 2]> for Map {
         let row = row - self.map_spec.upper_left.0;
         let col = col - self.map_spec.upper_left.1;
 
-        &self.data[[row, col]]
+        &self.data[[row, col].into()]
     }
 }
 
+impl From<Point> for MatrixIndex {
+    fn from(Point(col, row): Point) -> Self {
+        MatrixIndex { row, col }
+    }
+}
 impl Index<Point> for Map {
     type Output = MapCell;
 
     fn index(&self, index: Point) -> &Self::Output {
-        &self.data[[index.0, index.1]]
-    }
-}
-
-impl IndexMut<[usize; 2]> for Map {
-    fn index_mut(&mut self, [row, col]: [usize; 2]) -> &mut Self::Output {
-        let row = row - self.map_spec.upper_left.0;
-        let col = col - self.map_spec.upper_left.1;
-
-        &mut self.data[[row, col]]
+        &self.data[index.into()]
     }
 }
 
 impl IndexMut<Point> for Map {
     fn index_mut(&mut self, index: Point) -> &mut Self::Output {
-        &mut self[[index.0, index.1]]
+        &mut self[index.into()]
     }
 }
 
 impl From<MapSpec> for Map {
     fn from(map_spec: MapSpec) -> Self {
         let mut m = Map {
-            data: Matrix::new(map_spec.width, map_spec.height),
+            data: Matrix::new(map_spec.height, map_spec.width),
             map_spec,
         };
 
@@ -128,8 +121,7 @@ impl From<MapSpec> for Map {
             println!("{}", &m.data);
             for window in formation.windows(2) {
                 for p in Point::line_expand(&window[0]..&window[1]) {
-                    m.data[dbg!(Map::compute_offset(&m.map_spec.upper_left, &dbg!(p)))] =
-                        MapCell::Rock;
+                    m.data[Map::compute_offset(&m.map_spec.upper_left, &p).into()] = MapCell::Rock;
                 }
             }
         }
@@ -233,4 +225,56 @@ fn point_ordering_test() {
     assert!(two > one);
 
     assert_eq!(one.max(two.clone()), two);
+}
+
+#[test]
+fn line_generation_test() {
+    /* 498,4 -> 498,6 -> 496,6 */
+    assert_eq!(
+        Point::line_expand(&Point(498, 4)..&Point(498, 6)).collect::<Vec<_>>(),
+        vec![Point(498, 4), Point(498, 5), Point(498, 6)]
+    );
+
+    assert_eq!(
+        Point::line_expand(&Point(498, 6)..&Point(496, 6)).collect::<Vec<_>>(),
+        vec![Point(496, 6), Point(497, 6), Point(498, 6)]
+    );
+    // 503,4 -> 502,4 -> 502,9 -> 494,9
+    assert_eq!(
+        Point::line_expand(&Point(503, 4)..&Point(502, 4)).collect::<Vec<_>>(),
+        vec![Point(502, 4), Point(503, 4),]
+    );
+    assert_eq!(
+        Point::line_expand(&Point(502, 4)..&Point(502, 9)).collect::<Vec<_>>(),
+        vec![
+            Point(502, 4),
+            Point(502, 5),
+            Point(502, 6),
+            Point(502, 7),
+            Point(502, 8),
+            Point(502, 9),
+        ]
+    );
+    assert_eq!(
+        Point::line_expand(&Point(502, 9)..&Point(494, 9)).collect::<Vec<_>>(),
+        vec![
+            Point(494, 9),
+            Point(495, 9),
+            Point(496, 9),
+            Point(497, 9),
+            Point(498, 9),
+            Point(499, 9),
+            Point(500, 9),
+            Point(501, 9),
+            Point(502, 9),
+        ]
+    );
+}
+
+#[test]
+fn compute_offsets_test() {
+    let datum = Point(494, 4);
+    assert_eq!(Map::compute_offset(&datum, &Point(494, 4)), Point(0, 0));
+    assert_eq!(Map::compute_offset(&datum, &Point(503, 9)), Point(9, 5));
+    assert_eq!(Map::compute_offset(&datum, &Point(495, 6)), Point(1, 2));
 }

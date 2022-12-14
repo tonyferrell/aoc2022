@@ -1,4 +1,9 @@
-use std::ops::{Index, IndexMut, Range};
+use std::ops::{Index, IndexMut};
+
+pub struct MatrixIndex {
+    pub row: usize,
+    pub col: usize,
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Matrix<T> {
@@ -27,24 +32,32 @@ where
         }
     }
 }
+impl From<[usize; 2]> for MatrixIndex {
+    fn from([row, col]: [usize; 2]) -> Self {
+        MatrixIndex {
+            row,
+            col,
+        }
+    }
+}
 
-impl<T> Index<[usize; 2]> for Matrix<T>
+impl<T> Index<MatrixIndex> for Matrix<T>
 where
     T: Clone + Default,
 {
     type Output = T;
 
-    fn index(&self, [x, y]: [usize; 2]) -> &Self::Output {
-        &self.data[x * self.width + y]
+    fn index(&self, MatrixIndex { row, col }: MatrixIndex) -> &Self::Output {
+        &self.data[row * self.width + col]
     }
 }
 
-impl<T> IndexMut<[usize; 2]> for Matrix<T>
+impl<T> IndexMut<MatrixIndex> for Matrix<T>
 where
     T: Clone + Default,
 {
-    fn index_mut(&mut self, [x, y]: [usize; 2]) -> &mut Self::Output {
-        &mut self.data[x * self.width + y]
+    fn index_mut(&mut self, MatrixIndex { row, col }: MatrixIndex) -> &mut Self::Output {
+        &mut self.data[row * self.width + col]
     }
 }
 
@@ -54,7 +67,7 @@ fn mut_access_test() {
     let mut i = 1;
     for r in 0..3 {
         for c in 0..3 {
-            m[[r, c]] = i;
+            m[[r, c].into()] = i;
             i += 1;
         }
     }
