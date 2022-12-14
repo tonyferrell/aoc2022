@@ -6,7 +6,7 @@ pub struct MatrixIndex {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) struct Matrix<T> {
+pub struct Matrix<T> {
     // interesting_window: Option<Range<usize>>,
     pub height: usize,
     pub width: usize,
