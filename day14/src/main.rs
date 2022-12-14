@@ -1,17 +1,19 @@
 mod aoc_file;
+mod map;
 mod matrix;
 mod point;
-mod map;
-
 
 use aoc_file::read_lines;
 use itertools::Itertools;
-use point::*;
 use map::*;
+use point::*;
 
+use crate::matrix::MatrixIndex;
 
 fn main() {
-    let map: Map = parse_file_to_structure_definitions(&aoc_file::get_file_param()).unwrap().into();
+    let map: Map = parse_file_to_structure_definitions(&aoc_file::get_file_param())
+        .unwrap()
+        .into();
     println!("{}", map.data);
 }
 
